@@ -1,6 +1,38 @@
-
+import fs from "fs";
+import path from "path";
 import { google, gmail_v1 } from "googleapis";
 import { SimpleMessage } from "../types";
+import { FETCH_MAX_RESULTS, SCOPES } from "../constants/constants";
+
+export function createOAuthClient() {
+ const clientId = process.env.GOOGLE_CLIENT_ID;
+ const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+ const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+ const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+
+ if (!clientId || !clientSecret || !redirectUri) {
+  throw new Error("Missing Google OAuth env vars (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI)");
+ }
+
+ const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+ if (refreshToken) {
+  client.setCredentials({ refresh_token: refreshToken });
+ }
+
+ return client;
+}
+
+export function getAuthUrlForSetup() {
+ const client = createOAuthClient();
+ const url = client.generateAuthUrl({
+  access_type: "offline",
+  scope: SCOPES,
+  prompt: "consent",
+ });
+ return url;
+}
+
 export async function authorize() {
  const client = createOAuthClient();
  return client;
@@ -17,7 +49,7 @@ export async function fetchMessages(gmail: gmail_v1.Gmail, query: string): Promi
   const response: gmail_v1.Schema$ListMessagesResponse = (await gmail.users.messages.list({
    userId: "me",
    q: query,
-   maxResults: 1000,
+   maxResults: FETCH_MAX_RESULTS,
    pageToken,
   })).data;
 
@@ -57,22 +89,18 @@ export async function fetchMessages(gmail: gmail_v1.Gmail, query: string): Promi
  return results;
 }
 
-
-export function createOAuthClient() {
- const clientId = process.env.GOOGLE_CLIENT_ID;
- const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
- const redirectUri = process.env.GOOGLE_REDIRECT_URI;
- const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-
- if (!clientId || !clientSecret || !redirectUri) {
-  throw new Error("Missing Google OAuth env vars (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI)");
+export function ensureBackupDir(): string {
+ const dir = path.join(__dirname, "backups");
+ if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true });
  }
+ return dir;
+}
 
- const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-
- if (refreshToken) {
-  client.setCredentials({ refresh_token: refreshToken });
- }
-
- return client;
+export function saveBackupToFile(messages: SimpleMessage[], label: string): string {
+ const dir = ensureBackupDir();
+ const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+ const filePath = path.join(dir, `${label}-${timestamp}.json`);
+ fs.writeFileSync(filePath, JSON.stringify({ count: messages.length, messages }, null, 2));
+ return filePath;
 }
