@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  inboxcleaner:
+    build: .
+    ports:
+      - "${PORT:-3005}:${PORT:-3005}"
+    env_file:
+      - .env
+    volumes:
+      - ./backups:/app/backups
+    restart: unless-stopped

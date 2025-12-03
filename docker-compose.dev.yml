@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  inboxcleaner-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${PORT:-3005}:${PORT:-3005}"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./backups:/app/backups
+    restart: unless-stopped
