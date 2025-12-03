@@ -90,7 +90,7 @@ export async function fetchMessages(gmail: gmail_v1.Gmail, query: string): Promi
 }
 
 export function ensureBackupDir(): string {
- const dir = path.join(__dirname, "backups");
+ const dir = path.join(process.cwd(), "backups");
  if (!fs.existsSync(dir)) {
   fs.mkdirSync(dir, { recursive: true });
  }
